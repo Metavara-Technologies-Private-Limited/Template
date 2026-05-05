@@ -56,5 +56,5 @@ jobs:
             docker run -d \
               --restart always \
               --name lms-frontend \
-              -p 3002:80 \
-              ${{ secrets.DOCKER_USERNAME }}/lms-frontend:latest
+              -p 8085:80 \
+                  ${{ secrets.DOCKER_USERNAME }}/lms-frontend:latest

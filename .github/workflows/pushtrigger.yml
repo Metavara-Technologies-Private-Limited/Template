@@ -3,8 +3,7 @@ name: VIDAI-LMS Push Trigger
 on:
   push:
     branches:
-      - main
-      - dev
+    
 
 jobs:
   build-and-deploy:

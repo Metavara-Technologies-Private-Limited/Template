@@ -57,4 +57,4 @@ jobs:
               --restart always \
               --name template-frontend \
               -p 8085:80 \
-              ${{ secrets.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DOCKER_USERNAME }}/template-frontend:latest
+              ${{ secrets.DOCKER_USERNAME }}/template-frontend:latest

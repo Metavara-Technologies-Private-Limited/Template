@@ -1,0 +1,165 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #2c2c2c;
+}
+
+.backRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 24px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+}
+
+.section {
+    padding: 14px 24px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sectionTitle {
+    font-size: 11px;
+    font-weight: 700;
+    color: #aaa;
+    letter-spacing: 0.8px;
+    margin: 0 0 12px;
+    text-transform: uppercase;
+}
+
+.basicGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.serviceRow {
+    margin-top: 12px;
+    max-width: 25%;
+}
+
+.fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fieldLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+}
+
+.select {
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+}
+
+.select:focus {
+    border-color: #2E75B6;
+}
+
+.textInput {
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.textInput:focus {
+    border-color: #2E75B6;
+}
+
+.formatRow {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.radioLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #333;
+}
+
+.radioLabel input[type='radio'] {
+    accent-color: #E17E61;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.formAreaLabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: #aaa;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 12px 24px 0;
+    margin: 0;
+}
+
+.formCanvas {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    min-height: 0;
+}
+
+.footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.cancelBtn {
+    padding: 7px 20px;
+    border-radius: 5px;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    color: #333;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.cancelBtn:hover {
+    background: #f5f5f5;
+}
+
+.saveBtn {
+    padding: 7px 20px;
+    border-radius: 5px;
+    border: none;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.saveBtn:hover {
+    background: #333;
+}

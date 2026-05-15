@@ -97,17 +97,41 @@
 .radioLabel {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
+    gap: 8px;
+    font-size: 0.95em;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    color: #1a1a1a;
     cursor: pointer;
-    color: #333;
 }
 
 .radioLabel input[type='radio'] {
-    accent-color: #E17E61;
-    width: 15px;
-    height: 15px;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 17px;
+    height: 17px;
+    border: 2px solid #E2E3E5;
+    border-radius: 50%;
     cursor: pointer;
+    position: relative;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+}
+
+.radioLabel input[type='radio']:checked {
+    border-color: black;
+}
+
+.radioLabel input[type='radio']:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -47%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #F15B5B;
 }
 
 .formAreaLabel {

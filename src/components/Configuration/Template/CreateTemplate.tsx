@@ -2,6 +2,9 @@ import { useState } from "react";
 import styles from "../../../styles/CreateTemplate.module.css";
 import FormTemplate from "./FormTemplate";
 import TextTemplate from "./TextTemplate";
+import RadioButton from "../../../assets/icons/Radio_Button.svg";
+import RadioButton2 from "../../../assets/icons/Radio_Button2.svg";
+import Back from "../../../assets/icons/Back_Icon.svg";
 
 type TemplateFormat = "text" | "form";
 
@@ -42,7 +45,11 @@ export default function CreateTemplate({ onCancel, onSave }: CreateTemplateProps
 
       {/* Back */}
       <div className={styles.backRow} onClick={onCancel}>
-        ← Create New Template
+        <img
+              src={Back}
+              alt="Back"
+            />
+            Create New Template
       </div>
 
       {/* Basic Details */}
@@ -90,14 +97,25 @@ export default function CreateTemplate({ onCancel, onSave }: CreateTemplateProps
       <div className={styles.section}>
         <p className={styles.sectionTitle}>Types of Template Format</p>
         <div className={styles.formatRow}>
-          <label className={styles.radioLabel}>
-            <input type="radio" name="format" checked={format === "text"} onChange={() => setFormat("text")} />
+
+          <div className={styles.radioLabel} onClick={() => setFormat("text")}>
+            <img
+              src={format === "text" ? RadioButton : RadioButton2}
+              alt="radio"
+              className={styles.radioIcon}
+            />
             Text
-          </label>
-          <label className={styles.radioLabel}>
-            <input type="radio" name="format" checked={format === "form"} onChange={() => setFormat("form")} />
+          </div>
+
+          <div className={styles.radioLabel} onClick={() => setFormat("form")}>
+            <img
+              src={format === "form" ? RadioButton : RadioButton2}
+              alt="radio"
+              className={styles.radioIcon}
+            />
             Form
-          </label>
+          </div>
+
         </div>
       </div>
 

@@ -1,5 +1,6 @@
-import  { useRef, useState, useCallback } from "react";
+import  { useRef, useState, useCallback, useEffect } from "react";
 import styles from "../../../styles/TextTemplate.module.css";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -8,23 +9,69 @@ interface TextTemplateProps {
   onContentChange?: (html: string) => void;
 }
 
-// ─── Toolbar config ───────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const FONTS = ["Nunito", "Arial", "Times New Roman", "Georgia", "Courier New"];
-// const FONT_SIZES = ["8", "9", "10", "11", "12", "13", "14", "16", "18", "20", "24", "28", "32"];
+const FONTS = ["Nunito", "Arial", "Montserrat", "Georgia", "Courier New"];
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const DEFAULT_CONTENT = `<p><strong>RESULTS:</strong></p>
+<p><strong>AZFa Region:</strong><br/>STS markers (SRY, SY84, SY86) were analyzed. No deletion detected.</p>
+<p><strong>AZFb Region:</strong><br/>STS markers (SY127, SY134) were analyzed. No deletion detected.</p>
+<p><strong>AZFc Region:</strong><br/>STS markers (SY254, SY255) were analyzed. Partial deletion observed.</p>
+<p><strong>AZFd Region:</strong><br/>STS marker (SY157) analyzed. No deletion detected.</p>
+<p><strong>INTERPRETATION:</strong></p>`;
 
-export default function TextTemplate({ initialContent = "", onContentChange }: TextTemplateProps) {
+// ─── Toolbar button ───────────────────────────────────────────────────────────
+
+function ToolbarBtn({
+  title,
+  active,
+  onClick,
+  children,
+}: {
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      className={`${styles.toolbarBtn} ${active ? styles.toolbarBtnActive : ""}`}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function TextTemplate({ initialContent, onContentChange }: TextTemplateProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [font, setFont] = useState("Nunito");
-  const [fontSize, setFontSize] = useState("13");
+  const [fontSize, setFontSize] = useState(13);
+  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
 
-  // ── execCommand wrapper ──
-  const exec = useCallback((command: string, value?: string) => {
+  // ── Set initial content via useEffect (NOT dangerouslySetInnerHTML) ──
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = initialContent || DEFAULT_CONTENT;
+      // move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  // only run on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exec = useCallback((cmd: string, value?: string) => {
     editorRef.current?.focus();
-    document.execCommand(command, false, value);
+    document.execCommand(cmd, false, value);
     updateActiveFormats();
     onContentChange?.(editorRef.current?.innerHTML || "");
   }, [onContentChange]);
@@ -38,160 +85,225 @@ export default function TextTemplate({ initialContent = "", onContentChange }: T
     setActiveFormats(active);
   };
 
-  const applyHeading = (tag: string) => exec("formatBlock", tag);
+  const applyHeading = (tag: string) => {
+    editorRef.current?.focus();
+    document.execCommand("formatBlock", false, tag);
+    onContentChange?.(editorRef.current?.innerHTML || "");
+  };
 
   const applyFont = (f: string) => {
     setFont(f);
-    exec("fontName", f);
+    editorRef.current?.focus();
+    document.execCommand("fontName", false, f);
+    onContentChange?.(editorRef.current?.innerHTML || "");
   };
 
-  const applyFontSize = (size: string) => {
+  const applyFontSize = (size: number) => {
     setFontSize(size);
-    // execCommand fontSize only accepts 1-7, so use a workaround
     editorRef.current?.focus();
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      document.execCommand("fontSize", false, "7");
-      const fonts = editorRef.current?.querySelectorAll('font[size="7"]');
-      fonts?.forEach((el) => {
-        (el as HTMLElement).removeAttribute("size");
-        (el as HTMLElement).style.fontSize = `${size}px`;
-      });
-    }
+    // Use a temp marker approach to apply pixel font size
+    document.execCommand("fontSize", false, "7");
+    const markers = editorRef.current?.querySelectorAll('font[size="7"]');
+    markers?.forEach((el) => {
+      (el as HTMLElement).removeAttribute("size");
+      (el as HTMLElement).style.fontSize = `${size}px`;
+    });
     onContentChange?.(editorRef.current?.innerHTML || "");
   };
 
   const isActive = (cmd: string) => activeFormats.has(cmd);
 
-  const tb = (label: string, cmd: string, title?: string) => (
-    <button
-      key={cmd}
-      title={title || label}
-      className={`${styles.toolBtn} ${isActive(cmd) ? styles.toolBtnActive : ""}`}
-      onMouseDown={(e) => { e.preventDefault(); exec(cmd); }}
-    >
-      {label}
-    </button>
-  );
+  // ── Handle Enter key — ensure cursor goes DOWN not up ──
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      editorRef.current?.focus();
+      // Insert a new paragraph
+      document.execCommand("insertParagraph", false);
+      onContentChange?.(editorRef.current?.innerHTML || "");
+    }
+  };
 
   return (
     <div className={styles.root}>
 
-      {/* ── Top bar ── */}
-      <div className={styles.topBar}>
+      {/* ── Toolbar ── */}
+      <div className={styles.toolbarWrapper}>
 
-        {/* Load Template */}
-        <div className={styles.loadSection}>
-          <div>
-            <span className={styles.loadLabel}>Load Template</span>
-            <button className={styles.loadBtn}>Select Template</button>
+        {/* Load Template group */}
+        <div className={styles.toolbarGroup}>
+          <span className={styles.toolbarGroupLabel}>Load Template</span>
+          <div className={styles.toolbarGroupBtns}>
+            {["H1", "H2", "H3", "SH1", "SH2", "SH3", "T"].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className={styles.loadBtn}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const tagMap: Record<string, string> = {
+                    H1: "h1", H2: "h2", H3: "h3",
+                    SH1: "h4", SH2: "h5", SH3: "h6",
+                    T: "p",
+                  };
+                  applyHeading(tagMap[tag]);
+                }}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Custom Options toolbar */}
-        <div className={styles.toolbar}>
-          <span className={styles.toolbarLabel}>Custom Options</span>
+        <div className={styles.toolbarSep} />
 
-          {/* Heading shortcuts */}
-          <div className={styles.toolGroup}>
-            <button className={styles.toolBtn} title="Heading 1" onMouseDown={(e) => { e.preventDefault(); applyHeading("h1"); }}>H1</button>
-            <button className={styles.toolBtn} title="Heading 2" onMouseDown={(e) => { e.preventDefault(); applyHeading("h2"); }}>H2</button>
-            <button className={styles.toolBtn} title="Heading 3" onMouseDown={(e) => { e.preventDefault(); applyHeading("h3"); }}>H3</button>
-            <button className={styles.toolBtn} title="Sub Heading 1" onMouseDown={(e) => { e.preventDefault(); applyHeading("h4"); }}>SH1</button>
-            <button className={styles.toolBtn} title="Sub Heading 2" onMouseDown={(e) => { e.preventDefault(); applyHeading("h5"); }}>SH2</button>
-            <button className={styles.toolBtn} title="Sub Heading 3" onMouseDown={(e) => { e.preventDefault(); applyHeading("h6"); }}>SH3</button>
-            <button className={styles.toolBtn} title="Paragraph" onMouseDown={(e) => { e.preventDefault(); applyHeading("p"); }}>T</button>
-          </div>
+        {/* Custom Options group */}
+        <div className={styles.toolbarGroup}>
+          <span className={styles.toolbarGroupLabel}>Custom Options</span>
+          <div className={styles.toolbarGroupBtns}>
 
-          <div className={styles.toolGroupDivider} />
+            {/* Undo / Redo */}
+            <ToolbarBtn title="Undo" onClick={() => exec("undo")}>↩</ToolbarBtn>
+            <ToolbarBtn title="Redo" onClick={() => exec("redo")}>↪</ToolbarBtn>
 
-          {/* Undo / Redo */}
-          <div className={styles.toolGroup}>
-            <button className={styles.toolBtn} title="Undo" onMouseDown={(e) => { e.preventDefault(); exec("undo"); }}>↩</button>
-            <button className={styles.toolBtn} title="Redo" onMouseDown={(e) => { e.preventDefault(); exec("redo"); }}>↪</button>
-          </div>
+            <div className={styles.toolbarDivider} />
 
-          <div className={styles.toolGroupDivider} />
-
-          {/* Font family */}
-          <select
-            className={styles.toolSelect}
-            value={font}
-            onChange={(e) => applyFont(e.target.value)}
-            style={{ width: 90 }}
-          >
-            {FONTS.map((f) => <option key={f}>{f}</option>)}
-          </select>
-
-          {/* Font size */}
-          <div className={styles.toolGroup} style={{ gap: 2 }}>
-            <button className={styles.toolBtn} title="Decrease font size" onMouseDown={(e) => { e.preventDefault(); applyFontSize(String(Math.max(8, parseInt(fontSize) - 1))); }}>−</button>
-            <span style={{ fontSize: 12, minWidth: 20, textAlign: "center" }}>{fontSize}</span>
-            <button className={styles.toolBtn} title="Increase font size" onMouseDown={(e) => { e.preventDefault(); applyFontSize(String(Math.min(72, parseInt(fontSize) + 1))); }}>+</button>
-          </div>
-
-          <div className={styles.toolGroupDivider} />
-
-          {/* Text formatting */}
-          <div className={styles.toolGroup}>
-            {tb("B", "bold")}
-            {tb("I", "italic")}
-            {tb("U", "underline")}
-            <button
-              className={styles.toolBtn}
-              title="Text color"
-              onMouseDown={(e) => { e.preventDefault(); }}
-              style={{ position: "relative" }}
+            {/* Font family */}
+            <select
+              className={styles.toolbarSelect}
+              value={font}
+              onChange={(e) => applyFont(e.target.value)}
             >
-              <span>A</span>
-              <span className={styles.colorDot} />
-            </button>
-          </div>
+              {FONTS.map((f) => <option key={f}>{f}</option>)}
+            </select>
 
-          <div className={styles.toolGroupDivider} />
+            {/* Font size */}
+            <div className={styles.fontSizeControl}>
+              <button
+                type="button"
+                className={styles.fontSizeBtn}
+                onMouseDown={(e) => { e.preventDefault(); applyFontSize(Math.max(8, fontSize - 1)); }}
+              >−</button>
+              <span className={styles.fontSizeValue}>{fontSize}</span>
+              <button
+                type="button"
+                className={styles.fontSizeBtn}
+                onMouseDown={(e) => { e.preventDefault(); applyFontSize(Math.min(72, fontSize + 1)); }}
+              >+</button>
+            </div>
 
-          {/* Alignment */}
-          <div className={styles.toolGroup}>
-            <button className={styles.toolBtn} title="Align left"   onMouseDown={(e) => { e.preventDefault(); exec("justifyLeft"); }}>≡</button>
-            <button className={styles.toolBtn} title="Align center" onMouseDown={(e) => { e.preventDefault(); exec("justifyCenter"); }}>≡</button>
-            <button className={styles.toolBtn} title="Align right"  onMouseDown={(e) => { e.preventDefault(); exec("justifyRight"); }}>≡</button>
-          </div>
+            <div className={styles.toolbarDivider} />
 
-          <div className={styles.toolGroupDivider} />
+            {/* Bold / Italic / Underline / Color */}
+            <ToolbarBtn title="Bold" active={isActive("bold")} onClick={() => exec("bold")}>
+              <strong style={{ fontSize: "0.9em" }}>B</strong>
+            </ToolbarBtn>
+            <ToolbarBtn title="Italic" active={isActive("italic")} onClick={() => exec("italic")}>
+              <em style={{ fontSize: "0.9em" }}>I</em>
+            </ToolbarBtn>
+            <ToolbarBtn title="Underline" active={isActive("underline")} onClick={() => exec("underline")}>
+              <span style={{ textDecoration: "underline", fontSize: "0.9em" }}>U</span>
+            </ToolbarBtn>
 
-          {/* Lists */}
-          <div className={styles.toolGroup}>
-            <button className={styles.toolBtn} title="Bullet list"   onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList"); }}>•≡</button>
-            <button className={styles.toolBtn} title="Numbered list" onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList"); }}>1≡</button>
-            <button className={styles.toolBtn} title="Indent"        onMouseDown={(e) => { e.preventDefault(); exec("indent"); }}>→≡</button>
-            <button className={styles.toolBtn} title="Outdent"       onMouseDown={(e) => { e.preventDefault(); exec("outdent"); }}>←≡</button>
-          </div>
+            <div className={styles.colorPickerWrap} title="Text Color">
+              <span style={{ fontSize: "0.85em", fontWeight: 700 }}>A</span>
+              <input
+                type="color"
+                className={styles.colorPicker}
+                onChange={(e) => exec("foreColor", e.target.value)}
+              />
+            </div>
 
-          <div className={styles.toolGroupDivider} />
+            <div className={styles.toolbarDivider} />
 
-          {/* Quote / Strikethrough / Clear */}
-          <div className={styles.toolGroup}>
-            <button className={styles.toolBtn} title="Blockquote"    onMouseDown={(e) => { e.preventDefault(); exec("formatBlock", "blockquote"); }}>"</button>
-            {tb("S̶", "strikeThrough")}
-            <button className={styles.toolBtn} title="Clear format"  onMouseDown={(e) => { e.preventDefault(); exec("removeFormat"); }}>✕</button>
+            {/* Alignment */}
+            <ToolbarBtn title="Align Left"   onClick={() => exec("justifyLeft")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Align Center" onClick={() => exec("justifyCenter")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Align Right"  onClick={() => exec("justifyRight")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/>
+              </svg>
+            </ToolbarBtn>
+
+            <div className={styles.toolbarDivider} />
+
+            {/* Lists */}
+            <ToolbarBtn title="Bullet List"   onClick={() => exec("insertUnorderedList")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/>
+                <line x1="9" y1="18" x2="20" y2="18"/>
+                <circle cx="4" cy="6" r="1" fill="currentColor"/>
+                <circle cx="4" cy="12" r="1" fill="currentColor"/>
+                <circle cx="4" cy="18" r="1" fill="currentColor"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Numbered List" onClick={() => exec("insertOrderedList")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/>
+                <line x1="10" y1="18" x2="21" y2="18"/>
+                <path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Outdent" onClick={() => exec("outdent")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/>
+                <polyline points="7 8 3 12 7 16"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Indent" onClick={() => exec("indent")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/>
+                <polyline points="3 8 7 12 3 16"/>
+              </svg>
+            </ToolbarBtn>
+
+            <div className={styles.toolbarDivider} />
+
+            {/* Blockquote / Strikethrough / Clear */}
+            <ToolbarBtn title="Blockquote" onClick={() => exec("formatBlock", "blockquote")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
+                <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
+              </svg>
+            </ToolbarBtn>
+            <ToolbarBtn title="Strikethrough" active={isActive("strikeThrough")} onClick={() => exec("strikeThrough")}>
+              <span style={{ textDecoration: "line-through", fontSize: "0.9em" }}>S</span>
+            </ToolbarBtn>
+            <ToolbarBtn title="Clear Formatting" onClick={() => exec("removeFormat")}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12"/>
+              </svg>
+            </ToolbarBtn>
+
           </div>
         </div>
       </div>
 
       {/* ── Editor ── */}
-      <div className={styles.editorWrap}>
-        <div
-          ref={editorRef}
-          className={styles.editor}
-          contentEditable
-          suppressContentEditableWarning
-          onKeyUp={updateActiveFormats}
-          onMouseUp={updateActiveFormats}
-          onInput={() => onContentChange?.(editorRef.current?.innerHTML || "")}
-          dangerouslySetInnerHTML={{ __html: initialContent }}
-          style={{ fontFamily: font, fontSize: `${fontSize}px` }}
-        />
-      </div>
+      <div
+        ref={editorRef}
+        className={styles.editor}
+        contentEditable
+        suppressContentEditableWarning
+        dir="ltr"
+        onKeyDown={handleKeyDown}
+        onKeyUp={updateActiveFormats}
+        onMouseUp={updateActiveFormats}
+        onInput={() => onContentChange?.(editorRef.current?.innerHTML || "")}
+      />
 
     </div>
   );
